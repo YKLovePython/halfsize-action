@@ -41,22 +41,19 @@ jobs:
             -t 5 -c:v libx264 -b:v 3M -c:a aac videos/clip.mp4
           ls -l videos
 
-      - name: Diagnose FFmpeg (macOS)
+      - name: Diagnose bundled FFmpeg (macOS)
         if: runner.os == 'macOS'
         shell: bash
         run: |
-          echo "arch=$(uname -m)"
-          which -a ffmpeg || true
-          which -a ffprobe || true
-          ls -l node_modules/ffmpeg-static/ffmpeg || true
-          ls -l node_modules/ffprobe-static/bin/darwin/arm64/ffprobe || true
-          node -e "const {execFileSync}=require('child_process');try{console.log(execFileSync('ffmpeg',['-version'],{encoding:'utf8'}).split('\n')[0])}catch(e){console.log('execError',e.status,e.message)}"
           npm install -g halfsize@0.1.9
-          echo '--- doctor (env) ---'
-          halfsize --doctor || true
-          CLEAN=$(node -e 'console.log(process.env.PATH.split(":").filter(d=>!d.includes("ffmpeg-static")&&!d.includes("ffprobe-static")).join(":"))')
-          echo '--- doctor (bundled only) ---'
-          env -u HALFSIZE_FFMPEG -u HALFSIZE_FFPROBE PATH="$CLEAN" halfsize --doctor || true
+          GR=$(npm root -g)
+          echo "root=$GR"
+          ls -la "$GR" | head -20
+          ls -la "$GR/halfsize" | head -20
+          ls -la "$GR/halfsize/node_modules" 2>/dev/null | head -30
+          ls -la "$GR/ffmpeg-static" 2>/dev/null | head -10
+          (cd "$GR/halfsize" && node -e "import('ffmpeg-static').then(m=>console.log('ffmpeg-static ->',m.default)).catch(e=>console.log('import err',e.code,e.message))")
+          (cd "$GR/halfsize" && node -e "import('ffprobe-static').then(m=>console.log('ffprobe-static ->',m.default.path)).catch(e=>console.log('import err',e.code,e.message))")
 
       - uses: ./
         with:
