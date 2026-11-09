@@ -1,0 +1,47 @@
+name: test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  compress:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install FFmpeg (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: choco install ffmpeg -y --no-progress
+
+      - name: Make a test clip
+        shell: bash
+        run: |
+          mkdir -p videos
+          ffmpeg -hide_banner -loglevel error \
+            -f lavfi -i testsrc2=size=640x360:rate=30 \
+            -f lavfi -i sine=frequency=440 \
+            -t 5 -c:v libx264 -b:v 3M -c:a aac videos/clip.mp4
+          ls -l videos
+
+      - uses: ./
+        with:
+          files: videos/clip.mp4
+          args: --to 1mb
+
+      - name: Assert the output exists and is smaller than the source
+        shell: bash
+        run: |
+          ls -l videos
+          test -f videos/clip.1mb.mp4
+          source_size=$(wc -c < videos/clip.mp4)
+          output_size=$(wc -c < videos/clip.1mb.mp4)
+          echo "source=$source_size output=$output_size"
+          test "$output_size" -lt "$source_size"

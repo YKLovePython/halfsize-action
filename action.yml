@@ -1,0 +1,45 @@
+name: halfsize
+description: Compress video files to an exact size and get a measured VMAF quality report
+author: YKLovePython
+branding:
+  icon: film
+  color: green
+
+inputs:
+  files:
+    description: >
+      Files or shell globs to compress, relative to the workspace.
+      Quotes are not preserved, so a glob such as "videos/*.mp4" is the reliable form.
+    required: true
+  args:
+    description: Arguments passed to halfsize. Defaults to a 20 MB target.
+    required: false
+    default: "--to 20mb"
+  version:
+    description: halfsize version to install. Use "latest" to track npm.
+    required: false
+    default: "0.1.9"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Install halfsize
+      shell: bash
+      run: npm install -g "halfsize@${{ inputs.version }}"
+
+    - name: Compress
+      shell: bash
+      env:
+        HALFSIZE_FILES: ${{ inputs.files }}
+        HALFSIZE_ARGS: ${{ inputs.args }}
+      run: |
+        set -euo pipefail
+        echo "halfsize $(halfsize --version)"
+        # Paths are word-split on purpose so globs and multiple files work.
+        # shellcheck disable=SC2086
+        halfsize $HALFSIZE_FILES $HALFSIZE_ARGS
