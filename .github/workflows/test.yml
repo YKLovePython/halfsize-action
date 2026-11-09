@@ -16,13 +16,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The runners do not ship FFmpeg on Linux or macOS. Installing it here also
-      # exercises the PATH branch of halfsize's binary resolution, while ffprobe
-      # still comes from the bundled ffprobe-static package.
-      - name: Set up FFmpeg
-        uses: FedericoCarboni/setup-ffmpeg@v3
+      - uses: actions/setup-node@v4
         with:
-          ffmpeg-version: release
+          node-version: 20
+
+      # The test clip has to exist before the action runs, so fetch the same
+      # static build halfsize bundles and put it on PATH. This keeps the job
+      # independent of apt, brew and Chocolatey, which differ in version and
+      # speed on every image.
+      - name: Provide FFmpeg for the test clip
+        shell: bash
+        run: |
+          npm install --no-save --no-audit --no-fund ffmpeg-static ffprobe-static
+          echo "$PWD/node_modules/ffmpeg-static" >> "$GITHUB_PATH"
+          echo "$PWD/node_modules/ffprobe-static/bin/$(node -p 'process.platform')/$(node -p 'process.arch')" >> "$GITHUB_PATH"
 
       - name: Make a test clip
         shell: bash
