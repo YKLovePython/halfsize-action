@@ -35,7 +35,7 @@ quality number is in the build log instead of in someone's memory.
 |---|---|---|
 | `files` | — (required) | Paths or globs, e.g. `videos/*.mp4`. Quotes are not preserved, so use a glob for several files. |
 | `args` | `--to 20mb` | Anything halfsize accepts: `--to 10mb`, `--for discord`, `--no-audio`, `--codec h265`, `--json` |
-| `version` | `0.1.9` | Pin it for reproducible builds, or `latest` |
+| `version` | `0.1.10` | Pin it for reproducible builds, or `latest` |
 
 ## A fuller example
 
