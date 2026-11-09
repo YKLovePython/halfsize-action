@@ -1,0 +1,40 @@
+name: diagnose
+
+on:
+  push:
+    branches: [diagnose]
+  workflow_dispatch:
+
+jobs:
+  macos:
+    name: macos-latest
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Inspect bundled binaries in a global install
+        shell: bash
+        run: |
+          set +e
+          npm install --no-save --no-audit --no-fund ffmpeg-static ffprobe-static > /dev/null 2>&1
+          npm install -g halfsize@0.1.9
+          GR=$(npm root -g)
+          echo "root=$GR"
+          echo '--- global halfsize deps ---'
+          ls "$GR/halfsize/node_modules"
+          echo '--- global ffmpeg-static ---'
+          ls -l "$GR/halfsize/node_modules/ffmpeg-static"
+          echo '--- global ffprobe-static ---'
+          ls -l "$GR/halfsize/node_modules/ffprobe-static/bin/darwin/arm64"
+          echo '--- import from global package ---'
+          cd "$GR/halfsize"
+          node -e "import('ffmpeg-static').then(m=>console.log('ffmpeg-static ->',m.default)).catch(e=>console.log('ffmpeg import err',e.code,e.message))"
+          node -e "import('ffprobe-static').then(m=>console.log('ffprobe-static ->',m.default.path)).catch(e=>console.log('ffprobe import err',e.code,e.message))"
+          echo '--- doctor without workspace binaries ---'
+          CLEAN=$(node -e 'console.log(process.env.PATH.split(":").filter(d=>!d.includes("ffmpeg-static")&&!d.includes("ffprobe-static")).join(":"))')
+          env -u HALFSIZE_FFMPEG -u HALFSIZE_FFPROBE PATH="$CLEAN" halfsize --doctor
+          echo "doctor exit=$?"
