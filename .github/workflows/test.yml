@@ -16,10 +16,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install FFmpeg (Windows)
-        if: runner.os == 'Windows'
-        shell: bash
-        run: choco install ffmpeg -y --no-progress
+      # The runners do not ship FFmpeg on Linux or macOS. Installing it here also
+      # exercises the PATH branch of halfsize's binary resolution, while ffprobe
+      # still comes from the bundled ffprobe-static package.
+      - name: Set up FFmpeg
+        uses: FedericoCarboni/setup-ffmpeg@v3
+        with:
+          ffmpeg-version: release
 
       - name: Make a test clip
         shell: bash
@@ -41,7 +44,7 @@ jobs:
         run: |
           ls -l videos
           test -f videos/clip.1mb.mp4
-          source_size=$(wc -c < videos/clip.mp4)
-          output_size=$(wc -c < videos/clip.1mb.mp4)
+          source_size=$(wc -c < videos/clip.mp4 | tr -d ' ')
+          output_size=$(wc -c < videos/clip.1mb.mp4 | tr -d ' ')
           echo "source=$source_size output=$output_size"
           test "$output_size" -lt "$source_size"
