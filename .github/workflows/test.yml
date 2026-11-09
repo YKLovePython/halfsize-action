@@ -21,13 +21,13 @@ jobs:
           node-version: 20
 
       # The test clip has to exist before the action runs, so fetch the same
-      # static build halfsize bundles and put it on PATH. This keeps the job
-      # independent of apt, brew and Chocolatey, which differ in version and
-      # speed on every image.
+      # static build halfsize bundles. Pointing halfsize at it explicitly also
+      # avoids depending on how each image happens to populate PATH.
       - name: Provide FFmpeg for the test clip
         shell: bash
         run: |
           npm install --no-save --no-audit --no-fund ffmpeg-static ffprobe-static
+          node -e "const p=require('path');const f=x=>p.resolve(x).split(p.sep).join('/');console.log('HALFSIZE_FFMPEG='+f(require('ffmpeg-static')));console.log('HALFSIZE_FFPROBE='+f(require('ffprobe-static').path));" >> "$GITHUB_ENV"
           echo "$PWD/node_modules/ffmpeg-static" >> "$GITHUB_PATH"
           echo "$PWD/node_modules/ffprobe-static/bin/$(node -p 'process.platform')/$(node -p 'process.arch')" >> "$GITHUB_PATH"
 
@@ -40,6 +40,23 @@ jobs:
             -f lavfi -i sine=frequency=440 \
             -t 5 -c:v libx264 -b:v 3M -c:a aac videos/clip.mp4
           ls -l videos
+
+      - name: Diagnose FFmpeg (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          echo "arch=$(uname -m)"
+          which -a ffmpeg || true
+          which -a ffprobe || true
+          ls -l node_modules/ffmpeg-static/ffmpeg || true
+          ls -l node_modules/ffprobe-static/bin/darwin/arm64/ffprobe || true
+          node -e "const {execFileSync}=require('child_process');try{console.log(execFileSync('ffmpeg',['-version'],{encoding:'utf8'}).split('\n')[0])}catch(e){console.log('execError',e.status,e.message)}"
+          npm install -g halfsize@0.1.9
+          echo '--- doctor (env) ---'
+          halfsize --doctor || true
+          CLEAN=$(node -e 'console.log(process.env.PATH.split(":").filter(d=>!d.includes("ffmpeg-static")&&!d.includes("ffprobe-static")).join(":"))')
+          echo '--- doctor (bundled only) ---'
+          env -u HALFSIZE_FFMPEG -u HALFSIZE_FFPROBE PATH="$CLEAN" halfsize --doctor || true
 
       - uses: ./
         with:
