@@ -20,40 +20,24 @@ jobs:
         with:
           node-version: 20
 
-      # The test clip has to exist before the action runs, so fetch the same
-      # static build halfsize bundles. Pointing halfsize at it explicitly also
-      # avoids depending on how each image happens to populate PATH.
-      - name: Provide FFmpeg for the test clip
+      # The five-second clip has to exist before the action runs, so fetch the same
+      # static build halfsize bundles. Pointing the action at it explicitly keeps the
+      # test independent of what each runner image happens to put on PATH.
+      - name: Provide FFmpeg
         shell: bash
         run: |
-          npm install --no-save --no-audit --no-fund ffmpeg-static ffprobe-static
+          npm install --no-save --no-audit --no-fund ffmpeg-static@5.3.0 ffprobe-static@3.1.0
           node -e "const p=require('path');const f=x=>p.resolve(x).split(p.sep).join('/');console.log('HALFSIZE_FFMPEG='+f(require('ffmpeg-static')));console.log('HALFSIZE_FFPROBE='+f(require('ffprobe-static').path));" >> "$GITHUB_ENV"
-          echo "$PWD/node_modules/ffmpeg-static" >> "$GITHUB_PATH"
-          echo "$PWD/node_modules/ffprobe-static/bin/$(node -p 'process.platform')/$(node -p 'process.arch')" >> "$GITHUB_PATH"
 
       - name: Make a test clip
         shell: bash
         run: |
           mkdir -p videos
-          ffmpeg -hide_banner -loglevel error \
+          "$HALFSIZE_FFMPEG" -hide_banner -loglevel error \
             -f lavfi -i testsrc2=size=640x360:rate=30 \
             -f lavfi -i sine=frequency=440 \
             -t 5 -c:v libx264 -b:v 3M -c:a aac videos/clip.mp4
           ls -l videos
-
-      - name: Diagnose bundled FFmpeg (macOS)
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          npm install -g halfsize@0.1.9
-          GR=$(npm root -g)
-          echo "root=$GR"
-          ls -la "$GR" | head -20
-          ls -la "$GR/halfsize" | head -20
-          ls -la "$GR/halfsize/node_modules" 2>/dev/null | head -30
-          ls -la "$GR/ffmpeg-static" 2>/dev/null | head -10
-          (cd "$GR/halfsize" && node -e "import('ffmpeg-static').then(m=>console.log('ffmpeg-static ->',m.default)).catch(e=>console.log('import err',e.code,e.message))")
-          (cd "$GR/halfsize" && node -e "import('ffprobe-static').then(m=>console.log('ffprobe-static ->',m.default.path)).catch(e=>console.log('import err',e.code,e.message))")
 
       - uses: ./
         with:
