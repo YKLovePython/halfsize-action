@@ -1,4 +1,4 @@
-name: halfsize
+name: halfsize - compress video to an exact size
 description: Compress video files to an exact size and get a measured VMAF quality report
 author: YKLovePython
 branding:
