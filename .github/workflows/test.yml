@@ -39,6 +39,25 @@ jobs:
             -t 5 -c:v libx264 -b:v 3M -c:a aac videos/clip.mp4
           ls -l videos
 
+      # Run the published CLI once outside the action, with a hard time bound
+      # where the platform has `timeout`. A hung install or encoder then shows
+      # up as a failed step with timings instead of stalling the whole job.
+      - name: Time a direct CLI run
+        shell: bash
+        run: |
+          start=$SECONDS
+          npm install -g halfsize@0.1.10
+          echo "install_seconds=$((SECONDS - start))"
+          halfsize --version
+          start=$SECONDS
+          if command -v timeout > /dev/null 2>&1; then
+            timeout 300 halfsize videos/clip.mp4 --to 1mb --out smoke.mp4 || true
+          else
+            halfsize videos/clip.mp4 --to 1mb --out smoke.mp4 || true
+          fi
+          echo "encode_seconds=$((SECONDS - start))"
+          ls -l smoke.mp4 || true
+
       - uses: ./
         with:
           files: videos/clip.mp4
